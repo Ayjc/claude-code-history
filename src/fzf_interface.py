@@ -28,43 +28,56 @@ class FzfInterface:
         height: str = "40%",
         layout: str = "reverse",
         border: bool = True,
+        preview: bool = False,
+        preview_window: str = "right:60%:wrap",
     ) -> Optional[str]:
         """
         Search items using fzf.
-        
+
         Args:
             items: List of strings to search through.
             prompt: Prompt to display in fzf.
             height: Height of the fzf window.
             layout: Layout option (reverse, default).
             border: Whether to show border.
-            
+            preview: Whether to enable preview.
+            preview_window: Preview window configuration.
+
         Returns:
             Selected item as string, or None if cancelled.
         """
         if not items:
             return None
-        
+
         cmd = [
             "fzf",
             f"--prompt={prompt}",
             f"--height={height}",
             f"--layout={layout}",
+            "--ansi",  # Support ANSI colors
         ]
-        
+
         if border:
             cmd.append("--border")
-        
+
+        if preview:
+            # Simple preview showing the full text
+            cmd.extend([
+                "--preview=echo {}",
+                f"--preview-window={preview_window}",
+                "--bind=ctrl-p:toggle-preview",
+            ])
+
         result = subprocess.run(
             cmd,
             input="\n".join(items),
             capture_output=True,
             text=True,
         )
-        
+
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout.strip()
-        
+
         return None
     
     def search_with_preview(

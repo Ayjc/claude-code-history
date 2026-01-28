@@ -9,57 +9,73 @@ from .history import HistoryReader, ClaudePrompt
 from .fzf_interface import FzfInterface
 from .completer import interactive_search
 from .config import Config, init_config, get_config
-
-
-def format_prompt(prompt, max_length: int = 80) -> str:
-    """Format a prompt for display."""
-    if len(prompt) > max_length:
-        return prompt[:max_length] + "..."
-    return prompt
+from .display import Formatter, Colors
+import time
 
 
 def print_prompts(prompts: List, limit: int = 20):
-    """Print prompts in a readable format."""
+    """Print prompts in a readable format with enhanced formatting."""
+    if not prompts:
+        print(Formatter.format_warning("No prompts found"))
+        return
+
+    print(Formatter.format_header("Search Results", len(prompts)))
+
     for i, p in enumerate(prompts[:limit], 1):
-        print(f"{i}. {format_prompt(p.prompt)}")
-        print(f"   📁 {p.project_path.split('/')[-1]}")
-        print(f"   📅 {p.timestamp.strftime('%Y-%m-%d %H:%M')}")
+        print(Formatter.format_prompt_line(p, i))
+
+    if len(prompts) > limit:
+        remaining = len(prompts) - limit
         print()
+        print(Formatter.format_info(f"{remaining} more results (use --limit to see more)"))
 
 
 def print_prompts_detailed(prompts: List, limit: int = 20):
     """Print prompts with full details."""
+    if not prompts:
+        print(Formatter.format_warning("No prompts found"))
+        return
+
+    print(Formatter.format_header("Detailed Results", len(prompts)))
+
     for i, p in enumerate(prompts[:limit], 1):
-        print(f"{i}. {'=' * 60}")
-        print(f"   📝 Prompt: {p.prompt[:200]}...")
-        print(f"   📁 Project: {p.project_name}")
-        print(f"   📅 Date: {p.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"   🔑 ID: {p.id}")
+        print(Formatter.format_prompt_detailed(p, i))
         print()
+
+    if len(prompts) > limit:
+        remaining = len(prompts) - limit
+        print(Formatter.format_info(f"{remaining} more results (use --limit to see more)"))
 
 
 def print_config(config: Config):
-    """Print current configuration."""
-    print("Current Configuration:")
-    print(f"  max_results: {config.max_results}")
-    print(f"  fzf_height: {config.fzf_height}")
-    print(f"  show_timestamp: {config.show_timestamp}")
-    print(f"  show_project: {config.show_project}")
-    print(f"  truncate_length: {config.truncate_length}")
-    print(f"  fzf_layout: {config.fzf_layout}")
-    print(f"  fzf_border: {config.fzf_border}")
-    print(f"  interactive_truncate: {config.interactive_truncate}")
+    """Print current configuration with enhanced formatting."""
+    print(Formatter.format_header("Configuration"))
+
+    rows = [
+        ["max_results", str(config.max_results)],
+        ["fzf_height", config.fzf_height],
+        ["show_timestamp", str(config.show_timestamp)],
+        ["show_project", str(config.show_project)],
+        ["truncate_length", str(config.truncate_length)],
+        ["fzf_layout", config.fzf_layout],
+        ["fzf_border", str(config.fzf_border)],
+        ["interactive_truncate", str(config.interactive_truncate)],
+    ]
+
+    for key, value in rows:
+        print(f"  {Colors.BRIGHT_CYAN}{key}:{Colors.RESET} {Colors.WHITE}{value}{Colors.RESET}")
 
 
 def print_projects(projects: List[str]):
-    """Print list of projects."""
+    """Print list of projects with enhanced formatting."""
     if not projects:
-        print("No projects found.")
+        print(Formatter.format_warning("No projects found"))
         return
-    
-    print(f"Found {len(projects)} project(s):\n")
+
+    print(Formatter.format_header("Projects", len(projects)))
+
     for i, name in enumerate(projects, 1):
-        print(f"  {i}. {name}")
+        print(f"  {Colors.BRIGHT_CYAN}{i}.{Colors.RESET} {Colors.WHITE}{name}{Colors.RESET}")
 
 
 def build_item_info(prompts: List[ClaudePrompt]) -> Dict[str, Dict[str, str]]:
@@ -231,27 +247,41 @@ Preview Controls:
         return
     
     reader = HistoryReader()
-    
+
     # Handle project listing
     if args.list_projects:
         projects = reader.get_all_project_names()
         print_projects(projects)
         return
-    
+
     # Build project filter lists
     projects = args.project if args.project else None
     exclude_projects = args.exclude_project if args.exclude_project else None
-    
-    # Get prompts with filtering
+
+    # Get prompts with filtering and timing
+    start_time = time.perf_counter()
     prompts = reader.search_multi(
         query=args.query,
         projects=projects,
         exclude_projects=exclude_projects,
     )
-    
+    elapsed = time.perf_counter() - start_time
+
     if not prompts:
-        print("No prompts found.", file=sys.stderr)
+        print(Formatter.format_warning("No prompts found"))
+
+        # Show cache stats if available
+        stats = reader.get_cache_stats()
+        if stats.get('enabled'):
+            print()
+            print(Formatter.format_stats(stats))
+
         sys.exit(0)
+
+    # Show search info for queries
+    if args.query:
+        print(Formatter.format_search_info(args.query, len(prompts), elapsed))
+        print()
     
     # Check if fzf is available and user didn't disable it
     fzf = FzfInterface()
@@ -302,29 +332,35 @@ Preview Controls:
     # Check for fzf
     if not use_fzf:
         print_prompts(prompts, config.max_results)
-        print("\n💡 Tip: Install fzf for better experience: brew install fzf")
+        print()
+        print(Formatter.format_info("Install fzf for better experience: brew install fzf"))
         return
-    
+
     # Build item info for preview
     item_info = build_item_info(prompts)
     items = [p.prompt for p in prompts]
-    
-    # Fzf interface with preview
-    if show_preview:
-        # Create a simple preview using fzf's built-in preview
-        preview_height = "50%" if args.preview_position in ["right", "left"] else "30%"
-        
+
+    # Prepare preview script
+    preview_script = Path(__file__).parent.parent / "scripts" / "preview.py"
+
+    # Fzf interface with enhanced preview
+    if show_preview and preview_script.exists():
+        # Build preview command with item info
+        preview_cmd = f"python3 {preview_script} {{}} '{{}}'"
+
         result = fzf.search(
             items,
-            prompt="Search prompts: ",
+            prompt=f"{Colors.BRIGHT_CYAN}🔍 Search prompts:{Colors.RESET} ",
             height=config.fzf_height,
             layout=config.fzf_layout,
             border=config.fzf_border,
+            preview=True,
+            preview_window=f"{args.preview_position}:60%:wrap",
         )
     else:
         result = fzf.search(
             items,
-            prompt="Search prompts: ",
+            prompt=f"{Colors.BRIGHT_CYAN}🔍 Search prompts:{Colors.RESET} ",
             height=config.fzf_height,
             layout=config.fzf_layout,
             border=config.fzf_border,

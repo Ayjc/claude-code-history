@@ -7,8 +7,14 @@ claude_code_history.egg-info/entry_points.txt
 claude_code_history.egg-info/requires.txt
 claude_code_history.egg-info/top_level.txt
 src/__init__.py
+src/cache.py
 src/cli.py
 src/completer.py
 src/config.py
 src/fzf_interface.py
 src/history.py
+src/history_optimized.py
+src/history_original.py
+tests/benchmark.py
+tests/compare_performance.py
+tests/profile_analysis.py

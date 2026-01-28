@@ -338,3 +338,120 @@ cch -p prod-app -e legacy fix
 cch -p my-app
 ```
 
+
+---
+
+## 👁️ Preview Feature
+
+### Enable Preview Window
+
+```bash
+# Enable preview window (shows project, date, ID)
+cch --preview
+
+# Preview on the right (default)
+cch --preview --preview-position right
+
+# Preview on the left
+cch --preview --preview-position left
+
+# Preview on top
+cch --preview --preview-position top
+
+# Preview on bottom
+cch --preview --preview-position bottom
+```
+
+### Preview Controls
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+P` | Toggle preview window |
+| `↑` / `↓` | Navigate results |
+| `Enter` | Select result |
+| `Ctrl+C` / `Esc` | Cancel |
+
+### Detailed List View
+
+```bash
+# View all prompts with full details (no fzf)
+cch --list-detailed
+
+# Limit results
+cch --list-detailed --limit 10
+```
+
+
+---
+
+## 🐚 Shell Integration
+
+### Install Shell Integration
+
+```bash
+# Navigate to the project
+cd claude-code-history
+
+# Run install script
+./scripts/install.sh
+
+# Restart your terminal
+exec zsh
+```
+
+### Manual Installation
+
+**Zsh:**
+```bash
+# Add to ~/.zshrc
+source ~/.claude-code-history/claude-code-history.zsh
+```
+
+**Bash:**
+```bash
+# Add to ~/.bashrc
+source ~/.claude-code-history/claude-code-history.bash
+```
+
+### Commands After Installation
+
+| Command | Description |
+|---------|-------------|
+| `cch` | Search prompts |
+| `cch -p my-app` | Filter by project |
+| `cch --preview` | Search with preview |
+| `cch --interactive` | Interactive mode |
+| `cchp` | List all projects |
+
+### Functions
+
+**Zsh:**
+```zsh
+cch-search()      # Search and copy to clipboard
+cch-insert()      # Search and insert at cursor
+cch-run()         # Search and execute
+```
+
+**Bash:**
+```bash
+cch-search()      # Search and copy to clipboard
+```
+
+### Key Bindings
+
+Add to your `~/.zshrc`:
+
+```zsh
+# Ctrl+R: Search and insert at cursor
+bindkey '^r' cch-search
+
+# Ctrl+P: Insert without leaving current buffer
+bindkey '^p' cch-insert
+```
+
+### Uninstall
+
+```bash
+./scripts/install.sh --uninstall
+```
+
