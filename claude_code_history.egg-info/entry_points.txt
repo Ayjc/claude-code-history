@@ -1,0 +1,2 @@
+[console_scripts]
+cch = src.cli:main
